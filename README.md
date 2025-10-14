@@ -1,36 +1,145 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lembrei! - Gerador de Usuários de Teste
 
-## Getting Started
+Uma aplicação Next.js que gera automaticamente usuários de teste aleatórios com credenciais únicas e registra-os no Supabase.
 
-First, run the development server:
+## 🎯 Funcionalidades
+
+- **Geração Automática de Usuários**: Cria usuários únicos com nomes e emails brasileiros realistas
+- **Integração com Supabase**: Registra usuários diretamente no banco de dados Supabase
+- **Credenciais Seguras**: Gera senhas fortes de 12 caracteres automaticamente
+- **Interface em Português**: Toda a experiência do usuário em português brasileiro
+- **Design Responsivo**: Interface moderna e responsiva com gradientes atraentes
+
+## 🚀 Começando
+
+### Instalação
+
+```bash
+npm install
+# ou
+yarn install
+```
+
+### Servidor de Desenvolvimento
 
 ```bash
 npm run dev
-# or
+# ou
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📊 Como Funciona
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Fluxo do Usuário
 
-## Learn More
+1. **Página Inicial** (`/`): Botão "Começar" com design limpo e centralizado
+2. **Página de Registro** (`/register`): Botão "Vamos lá!" que:
+   - Gera um usuário aleatório
+   - Registra no Supabase
+   - Armazena dados localmente
+3. **Página do Usuário** (`/usuario`): Exibe informações completas:
+   - Nome completo
+   - Email
+   - Senha gerada
+   - ID único
+   - Data de criação
+   - Botões para copiar informações
 
-To learn more about Next.js, take a look at the following resources:
+### Dados Gerados
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Cada usuário recebe:
+- **Nome Completo**: Combinação aleatória de nomes e sobrenomes brasileiros
+- **Email**: Formato `nome.sobrenome1234@dominio.com.br`
+- **Senha**: 12 caracteres com letras, números e símbolos
+- **ID Único**: Timestamp + código aleatório
+- **Data de Criação**: Timestamp da geração
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🗂️ Estrutura do Projeto
 
-## Deploy on Vercel
+```
+/app
+  /usuario         - Página de exibição do usuário
+  /register        - Página de geração e registro
+  page.tsx         - Página inicial
+  layout.tsx       - Layout raiz
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+/lib
+  types.ts         - Interfaces TypeScript
+  userGenerator.ts - Gerador de usuários aleatórios
+  supabase.ts      - Cliente Supabase
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🔧 Componentes Principais
+
+### Gerador de Usuários
+
+Gera usuários brasileiros realistas:
+
+```typescript
+const user = generateRandomUser()
+// Retorna: { id, email, password, firstName, lastName, fullName, createdAt }
+```
+
+### Integração com Supabase
+
+Registra usuários automaticamente:
+
+```typescript
+const { data, error } = await supabase.auth.signUp({
+  email: randomUser.email,
+  password: randomUser.password,
+  options: {
+    data: {
+      first_name: randomUser.firstName,
+      last_name: randomUser.lastName,
+      full_name: randomUser.fullName,
+      user_id: randomUser.id,
+    },
+  },
+});
+```
+
+## 🎨 Design
+
+- **Esquema de Cores**: Gradiente teal (`#80C2BA` para branco)
+- **Tipografia**: Cabeçalhos em negrito, texto limpo
+- **Animações**: Transições suaves e efeitos de hover
+- **Responsivo**: Design mobile-first
+
+## 🔄 Reset de Funcionalidade
+
+O botão "Criar Novo Usuário" na página do usuário:
+- Remove dados locais
+- Redireciona para a página inicial
+- Permite gerar um novo usuário
+
+## 🛠️ Tecnologias
+
+- **Next.js 15.5.4** - Framework React
+- **React 19.1.0** - Biblioteca UI
+- **TypeScript** - Segurança de tipos
+- **Tailwind CSS 4** - Estilização
+- **Supabase** - Backend e autenticação
+
+## 📝 Notas
+
+- Todos os usuários são registrados no Supabase automaticamente
+- Credenciais são geradas aleatoriamente e armazenadas localmente
+- Interface completamente em português brasileiro
+- Dados podem ser copiados com um clique
+
+## 🚀 Deploy
+
+Deploy no [Vercel](https://vercel.com):
+
+```bash
+npm run build
+```
+
+A aplicação é completamente estática e pode ser hospedada em qualquer plataforma que suporte Next.js.
+
+## 📄 Licença
+
+© 2025 Lembrei!. Todos os direitos reservados.
