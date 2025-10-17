@@ -10,11 +10,14 @@ export async function PATCH(
     const body = await request.json();
     const { 
       userName, 
-      firstDashboardEntryAt, 
+      firstDashboardEntryAt,
+      secondDashboardEntryAt,
       onboardingCompletedAt, 
       dosesAdded,
       firstTimeEnteringDoseCreationArea,
       doseCreationCompletedAt,
+      firstTimeViewingDosesList,
+      alarmModalAcknowledgedAt,
       doses,
       userEvents
     } = body;
@@ -26,19 +29,25 @@ export async function PATCH(
     const updateData: {
       userName?: string | null;
       firstDashboardEntryAt?: Date;
+      secondDashboardEntryAt?: Date;
       onboardingCompletedAt?: Date;
       dosesAdded?: boolean;
       firstTimeEnteringDoseCreationArea?: Date;
       doseCreationCompletedAt?: Date;
+      firstTimeViewingDosesList?: Date;
+      alarmModalAcknowledgedAt?: Date;
       doses?: any;
       userEvents?: any;
     } = {};
     if (userName !== undefined) updateData.userName = userName;
     if (firstDashboardEntryAt) updateData.firstDashboardEntryAt = new Date(firstDashboardEntryAt);
+    if (secondDashboardEntryAt) updateData.secondDashboardEntryAt = new Date(secondDashboardEntryAt);
     if (onboardingCompletedAt) updateData.onboardingCompletedAt = new Date(onboardingCompletedAt);
     if (dosesAdded !== undefined) updateData.dosesAdded = Boolean(dosesAdded);
     if (firstTimeEnteringDoseCreationArea) updateData.firstTimeEnteringDoseCreationArea = new Date(firstTimeEnteringDoseCreationArea);
     if (doseCreationCompletedAt) updateData.doseCreationCompletedAt = new Date(doseCreationCompletedAt);
+    if (firstTimeViewingDosesList) updateData.firstTimeViewingDosesList = new Date(firstTimeViewingDosesList);
+    if (alarmModalAcknowledgedAt) updateData.alarmModalAcknowledgedAt = new Date(alarmModalAcknowledgedAt);
     if (doses !== undefined) updateData.doses = doses;
     if (userEvents !== undefined) updateData.userEvents = userEvents;
 
