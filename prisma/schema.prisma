@@ -8,12 +8,19 @@ datasource db {
 }
 
 model Survey {
-  id                    String    @id @default(cuid())
-  userName              String?
-  dosesAdded            Boolean   @default(false)
-  startedAt             DateTime  @default(now())
-  firstDashboardEntryAt DateTime?
-  onboardingCompletedAt DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  id                                    String    @id @default(cuid())
+  userName                              String?
+  dosesAdded                            Boolean   @default(false)
+  startedAt                             DateTime  @default(now())
+  firstDashboardEntryAt                 DateTime?
+  secondDashboardEntryAt                DateTime?
+  onboardingCompletedAt                 DateTime?
+  firstTimeEnteringDoseCreationArea     DateTime?
+  doseCreationCompletedAt               DateTime?
+  firstTimeViewingDosesList             DateTime?
+  alarmModalAcknowledgedAt              DateTime?
+  doses                                 Json?     // Store doses array as JSON
+  userEvents                            Json?     // Store user events array as JSON
+  createdAt                             DateTime  @default(now())
+  updatedAt                             DateTime  @updatedAt
 }

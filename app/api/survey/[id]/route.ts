@@ -8,32 +8,62 @@ export async function PATCH(
   try {
     const { id } = await context.params;
     const body = await request.json();
-    const { userName, firstDashboardEntryAt, onboardingCompletedAt, dosesAdded } = body;
+    const { 
+      userName, 
+      firstDashboardEntryAt, 
+      onboardingCompletedAt, 
+      dosesAdded,
+      firstTimeEnteringDoseCreationArea,
+      doseCreationCompletedAt,
+      doses,
+      userEvents
+    } = body;
 
-  // DEV: log incoming payload for debugging
-  try { console.debug('[PATCH] payload for survey', id, body); } catch(e){/* ignore */}
+    // DEV: log incoming payload for debugging
+    console.log('[PATCH] Updating survey:', id);
+    console.log('[PATCH] Payload:', JSON.stringify(body, null, 2));
 
-  const updateData: {
+    const updateData: {
       userName?: string | null;
       firstDashboardEntryAt?: Date;
       onboardingCompletedAt?: Date;
       dosesAdded?: boolean;
+      firstTimeEnteringDoseCreationArea?: Date;
+      doseCreationCompletedAt?: Date;
+      doses?: any;
+      userEvents?: any;
     } = {};
     if (userName !== undefined) updateData.userName = userName;
     if (firstDashboardEntryAt) updateData.firstDashboardEntryAt = new Date(firstDashboardEntryAt);
     if (onboardingCompletedAt) updateData.onboardingCompletedAt = new Date(onboardingCompletedAt);
     if (dosesAdded !== undefined) updateData.dosesAdded = Boolean(dosesAdded);
+    if (firstTimeEnteringDoseCreationArea) updateData.firstTimeEnteringDoseCreationArea = new Date(firstTimeEnteringDoseCreationArea);
+    if (doseCreationCompletedAt) updateData.doseCreationCompletedAt = new Date(doseCreationCompletedAt);
+    if (doses !== undefined) updateData.doses = doses;
+    if (userEvents !== undefined) updateData.userEvents = userEvents;
+
+    console.log('[PATCH] Update data:', JSON.stringify(updateData, null, 2));
 
     const survey = await prisma.survey.update({
       where: { id },
       data: updateData,
     });
 
+    console.log('[PATCH] Survey updated successfully');
     return NextResponse.json({ success: true, survey });
   } catch (error) {
-    console.error('Error updating survey:', error);
+    console.error('[PATCH] Error updating survey:', error);
+    console.error('[PATCH] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error
+    });
     return NextResponse.json(
-      { success: false, error: 'Failed to update survey' },
+      { 
+        success: false, 
+        error: 'Failed to update survey',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
