@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSurvey } from '@/contexts/SurveyContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,10 +33,8 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    // Wait for context to finish loading
     if (contextLoading) return;
     
-    // Check for survey data after loading is complete
     if (!surveyData?.surveyId) {
       router.push('/');
       return;
@@ -58,23 +57,51 @@ export default function Dashboard() {
     if (surveyData?.surveyId && !hasRecordedEntry) {
       const now = new Date().toISOString();
       
-      // Save to database
       fetch(`/api/survey/${surveyData.surveyId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           firstDashboardEntryAt: now,
         }),
-      }).then(() => {
-        localStorage.setItem('dashboardEntryRecorded', 'true');
       }).catch((error) => {
-        console.error('Error recording dashboard entry:', error);
+        console.error('Error recording first dashboard entry:', error);
       });
 
-      // Add to userEvents through context
-      addUserEvent({ type: 'first_dashboard_entry' });
+      localStorage.setItem('firstDashboardEntryRecorded', 'true');
+    } else if (!hasSecondEntry && surveyData?.dosesAdded) {
+      const now = new Date().toISOString();
+      
+      fetch(`/api/survey/${surveyData.surveyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secondDashboardEntryAt: now,
+        }),
+      }).catch((error) => {
+        console.error('Error recording second dashboard entry:', error);
+      });
+
+      localStorage.setItem('secondDashboardEntryRecorded', 'true');
+    }
+  }, [router, surveyData, contextLoading]);
+
+  // Alarm notification logic with countdown
+  useEffect(() => {
+    // Check if all objectives are complete
+    const hasVisitedDosesPage = localStorage.getItem('hasEnteredDosesArea');
+    const hasSeenAlarmInfo = localStorage.getItem('hasSeenAlarmInfo');
+    const hasMarkedDose = takenDoses.length > 0;
+    const allObjectivesComplete = surveyData?.dosesAdded && hasVisitedDosesPage && hasMarkedDose;
+    
+    console.log('[Dashboard] Alarm check:', {
+      allObjectivesComplete,
+      dosesCount: doses.length,
+      hasSeenAlarmInfo,
+      todaysDosesCount: getTodaysDoses.length
+    });
+    
+    if (!allObjectivesComplete || doses.length === 0 || hasSeenAlarmInfo) {
+      return;
     }
   }, [router, surveyData, addUserEvent, contextLoading]);
 
@@ -84,8 +111,8 @@ export default function Dashboard() {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200 border-t-teal-600 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-500">Carregando...</p>
         </div>
       </div>
     );

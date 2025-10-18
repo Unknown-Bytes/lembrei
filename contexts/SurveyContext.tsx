@@ -7,6 +7,7 @@ export interface SurveyData {
   surveyId: string;
   userName: string;
   userEvents: UserEvent[];
+  doses: any[]; // Array of doses
   dashboardEntryRecorded: boolean;
   dosesAdded: boolean;
   addDosePromptShown: boolean;
@@ -38,18 +39,14 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const loadSurveyData = async () => {
     try {
       const surveyId = localStorage.getItem('surveyId');
-      const eventsRaw = localStorage.getItem('userEvents') || '[]';
-      const dashboardEntryRecorded = localStorage.getItem('dashboardEntryRecorded') === 'true';
-      const addDosePromptShown = localStorage.getItem('addDosePromptShown') === 'true';
-      const addDosePromptAcknowledgedAt = localStorage.getItem('addDosePromptAcknowledgedAt');
-
+      
       if (!surveyId) {
         console.warn('No surveyId found, redirecting to home');
         router.push('/');
         return;
       }
 
-      // Fetch survey data from API to get userName
+      // Fetch survey data from API to get userName and doses
       const response = await fetch(`/api/survey/${surveyId}`);
       if (!response.ok) {
         // Survey doesn't exist - clear localStorage and redirect
@@ -60,13 +57,34 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       }
       
       const survey = await response.json();
+      
+      // IMPORTANT: Load data from localStorage as the source of truth for client-side
+      // But also sync with database doses if they exist
+      const eventsRaw = localStorage.getItem('userEvents') || '[]';
+      const dosesRaw = localStorage.getItem('doses') || '[]';
+      const dashboardEntryRecorded = localStorage.getItem('dashboardEntryRecorded') === 'true';
+      const addDosePromptShown = localStorage.getItem('addDosePromptShown') === 'true';
+      const addDosePromptAcknowledgedAt = localStorage.getItem('addDosePromptAcknowledgedAt');
+      
       const userEvents = JSON.parse(eventsRaw);
+      const localDoses = JSON.parse(dosesRaw);
+      
+      // Use database doses if available, otherwise use localStorage
+      // Database doses come from the Dose[] relationship
+      const doses = survey.doses && survey.doses.length > 0 ? survey.doses : localDoses;
+      
+      console.log('[SurveyContext] Loaded doses:', {
+        fromDatabase: survey.doses?.length || 0,
+        fromLocalStorage: localDoses.length,
+        using: doses.length
+      });
 
       setSurveyData({
         surveyId,
         userName: survey.userName || 'Testador',
-        dosesAdded: survey.dosesAdded === true,
+        dosesAdded: doses.length > 0 || survey.dosesAdded === true,
         userEvents,
+        doses, // This becomes the single source of truth
         dashboardEntryRecorded,
         addDosePromptShown,
         addDosePromptAcknowledgedAt,
@@ -89,12 +107,32 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     if (!surveyData) return;
 
     const updated = { ...surveyData, ...data };
+    
+    // Avoid updating state if nothing actually changed to prevent render loops
+    try {
+      const currentStr = JSON.stringify(surveyData);
+      const updatedStr = JSON.stringify(updated);
+      if (currentStr === updatedStr) return;
+    } catch (e) {
+      // If stringify fails for any reason, fall back to setting state
+    }
+
+    console.log('[SurveyContext] Updating survey data:', Object.keys(data));
+    if (data.doses) {
+      console.log('[SurveyContext] New doses count:', data.doses.length);
+    }
+
     setSurveyData(updated);
 
-    // Persist to localStorage
+    // IMPORTANT: Persist to localStorage immediately for consistency
+    // This ensures localStorage stays in sync with Context (single source of truth)
     try {
-      if (data.userEvents) {
+      if (data.userEvents !== undefined) {
         localStorage.setItem('userEvents', JSON.stringify(data.userEvents));
+      }
+      if (data.doses !== undefined) {
+        localStorage.setItem('doses', JSON.stringify(data.doses));
+        console.log('[SurveyContext] Persisted doses to localStorage:', data.doses.length);
       }
       if (data.dosesAdded !== undefined) {
         localStorage.setItem('dosesAdded', data.dosesAdded ? 'true' : 'false');
@@ -118,17 +156,40 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   };
 
   const addUserEvent = (event: Omit<UserEvent, 'at' | 'surveyId'>) => {
-    if (!surveyData) return;
+    setSurveyData((prev) => {
+      if (!prev) return prev;
+      const newEvent: UserEvent = {
+        type: event.type,
+        ...event,
+        at: new Date().toISOString(),
+        surveyId: prev.surveyId,
+      };
+      const updatedEvents = [...prev.userEvents, newEvent];
 
-    const newEvent: UserEvent = {
-      type: event.type,
-      ...event,
-      at: new Date().toISOString(),
-      surveyId: surveyData.surveyId,
-    };
+      // Persist events to localStorage (do not call updateSurveyData here to avoid cascading setState)
+      try {
+        localStorage.setItem('userEvents', JSON.stringify(updatedEvents));
+      } catch (error) {
+        console.error('Error persisting user event:', error);
+      }
 
-    const updatedEvents = [...surveyData.userEvents, newEvent];
-    updateSurveyData({ userEvents: updatedEvents });
+      // Immediately save to database
+      fetch(`/api/survey/${prev.surveyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userEvents: updatedEvents
+        }),
+      }).then(response => {
+        if (!response.ok) {
+          console.error('Failed to save user event to database');
+        }
+      }).catch(error => {
+        console.error('Error saving user event to database:', error);
+      });
+
+      return { ...prev, userEvents: updatedEvents };
+    });
   };
 
   const refreshSurveyData = () => {
