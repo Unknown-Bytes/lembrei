@@ -3,13 +3,33 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSurvey } from '@/contexts/SurveyContext';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Pill, Plus, Clock, CheckCircle2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 
 export default function Dashboard() {
   const router = useRouter();
-  const { surveyData, updateSurveyData, addUserEvent, loading: contextLoading } = useSurvey();
-  const [showAddDoseModal, setShowAddDoseModal] = useState(false);
-  const [ackCaptured, setAckCaptured] = useState(false);
+  const { surveyData, addUserEvent, loading: contextLoading } = useSurvey();
+
+  const [checked, setChecked] = useState<number[]>([]);
+
+  type Medication = { name: string; dose: string; time: string };
+  const medications: Medication[] = [
+    { name: 'Aspirina', dose: '500mg', time: '8:00 AM' },
+    { name: 'Metformina', dose: '1000mg', time: '12:00 PM' },
+    { name: 'Atorvastatina', dose: '20mg', time: '6:00 PM' },
+    { name: 'Lisinopril', dose: '10mg', time: '9:00 PM' },
+    { name: 'Omeprazol', dose: '40mg', time: '7:00 AM' },
+  ];
+
+  const toggleCheck = (index: number) => {
+    setChecked((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    );
+  };
 
   useEffect(() => {
     // Wait for context to finish loading
@@ -30,7 +50,6 @@ export default function Dashboard() {
     // If not shown and not acknowledged, open the modal
     if (!promptShown && !acknowledgedAt) {
       console.log('Opening modal!');
-      setShowAddDoseModal(true);
       localStorage.setItem('addDosePromptShown', 'true');
     }
 
@@ -59,15 +78,7 @@ export default function Dashboard() {
     }
   }, [router, surveyData, addUserEvent, contextLoading]);
 
-  const handleAcknowledgeAddDose = () => {
-    const now = new Date().toISOString();
-    localStorage.setItem('addDosePromptAcknowledgedAt', now);
-    setShowAddDoseModal(false);
-    setAckCaptured(true);
-    
-    // Add event through context
-    addUserEvent({ type: 'addDose_prompt_acknowledged' });
-  };
+  // Modal não implementado nesta tela; apenas registramos no localStorage via efeito acima
 
   if (contextLoading) {
     return (
@@ -81,184 +92,96 @@ export default function Dashboard() {
   }
 
   return (
-    <>
-      <div className="min-h-screen bg-gray-50 p-6 flex flex-col">
-        {/* Add Dose Modal */}
-        {showAddDoseModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-              <h2 className="text-2xl font-bold text-teal-700 mb-3">Próximo desafio!</h2>
-              <p className="text-gray-700 mb-6">
-                Adicione sua primeira dose ao sistema. Vamos medir quanto tempo leva para você descobrir como fazer isso! 😊
-              </p>
-              <button
-                onClick={handleAcknowledgeAddDose}
-                className="w-full bg-teal-600 text-white py-3 rounded-xl font-semibold hover:bg-teal-700 transition shadow-lg"
-              >
-                Entendi
-              </button>
-            </div>
-          </div>
-        )}
+    <div className="min-h-screen bg-gray-50 p-4 flex flex-col gap-4">
+      <header className="flex justify-between items-center mt-2">
+        <h1 className="text-lg font-semibold text-black">Olá, Ana!</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon"><Clock className="h-5 w-5" /></Button>
+          <Button variant="outline" size="icon"><Pill className="h-5 w-5" /></Button>
+        </div>
+      </header>
 
-        {/* Greeting Header */}
-        <header className="mb-6">
-          <h1 className="text-3xl font-bold text-teal-700">Olá, {surveyData?.userName || 'Testador'}!</h1>
-          <p className="text-sm text-teal-500 mt-1"> Adicione sua primeira dose ao sistema!</p>
-          {surveyData?.dosesAdded && (
-            <div className="mt-3">
-              <span className="inline-block bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm font-medium">
-                Dose adicionada ✅
-              </span>
-            </div>
-          )}
-        </header>
-      </div>
-      <div>
-        {/* Example with two static circles */}
-        <div className="relative h-64 w-64 rounded-full flex items-center justify-center mx-auto my-8">
-          <svg width={256} height={256} className="transform -rotate-90">
-            {/* Full background circle (colorA) */}
-            <circle
-              stroke="#bae6fd"
-              fill="transparent"
-              strokeWidth={20}
-              r={108}
-              cx={128}
-              cy={128}
-            />
-            {/* Partial progress circle (colorB), 75% */}
-            <circle
-              stroke="#06b6d4"
-              fill="transparent"
-              strokeWidth={20}
-              strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 108}
-              strokeDashoffset={2 * Math.PI * 108 * 0.25}
-              r={108}
-              cx={128}
-              cy={128}
-              className="transition-all duration-700 ease-out"
-            />
+      <p className="text-gray-600 text-sm">Hoje: <strong>3 de 4 doses tomadas</strong></p>
+
+      <motion.div
+        className="relative flex flex-col items-center justify-center bg-white rounded-2xl shadow p-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="relative w-32 h-32">
+          <svg className="w-full h-full transform -rotate-90">
+            <circle cx="64" cy="64" r="56" stroke="#E5E7EB" strokeWidth="10" fill="none" />
+            <circle cx="64" cy="64" r="56" stroke="#0D9488" strokeWidth="10" fill="none" strokeDasharray="351" strokeDashoffset="60" strokeLinecap="round" />
           </svg>
-          {/* Centered number */}
-          <span className="absolute text-5xl font-semibold text-gray-700 select-none">
-            75%
-          </span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-4xl font-bold text-black">15</span>
+            <span className="text-xs text-gray-500">dias seguidos!</span>
+          </div>
         </div>
+        <p className="text-sm text-gray-600 mt-2">Você está indo muito bem!</p>
+      </motion.div>
 
-        {/* Próxima dose card */}
-        <div className="bg-white rounded-2xl p-4 shadow-md mb-8">
-          <h2 className="text-teal-700 font-semibold text-lg mb-2">Próxima dose</h2>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center text-white text-xl shadow">
-                💊
-              </div>
+      <div className="p-4 pb-16">
+      <Card className="mb-4 bg-teal-100 text-teal-800 border-0">
+        <CardContent className="text-sm py-3">
+          <p>Próxima dose: <strong>Paracetamol 500mg</strong></p>
+          <p>Hoje às <strong>14:00</strong></p>
+        </CardContent>
+      </Card>
+
+      <section>
+        <h2 className="text-base font-semibold mb-1 text-gray-600">Minha rotina</h2>
+        <p className="text-sm text-gray-600 mb-2">Meu progresso:</p>
+        <Card className="p-3 bg-teal-100 text-teal-800 border-0">
+          <p className="text-sm mb-1">Próxima conquista: <strong>7 dias seguidos!</strong></p>
+          <Progress value={70} className="h-2" />
+        </Card>
+      </section>
+
+      <section className="grid grid-cols-3 gap-2 mt-3">
+        <Button className="flex flex-col items-center justify-center h-20 bg-teal-100 text-teal-800">
+          <Pill className="h-6 w-6 mb-1" /> Remédios
+        </Button>
+        <Button className="flex flex-col items-center justify-center h-20 bg-teal-100 text-teal-800">
+          <Plus className="h-6 w-6 mb-1" /> Adicionar dose
+        </Button>
+        <Button className="flex flex-col items-center justify-center h-20 bg-teal-100 text-teal-800">
+          <Clock className="h-6 w-6 mb-1" /> Histórico
+        </Button>
+      </section>
+
+      <section className="mt-3">
+        <h2 className="text-base font-semibold mb-2 text-gray-600">Minha semana</h2>
+        <div className="flex gap-2 justify-between">
+          {[7,8,9,10,11,12,13].map((day, i) => (
+            <div key={i} className={`w-8 h-8 flex items-center justify-center rounded-full ${day <= 11 ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-500'}`}>{day}</div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-3">
+        <h2 className="text-base font-semibold mb-2 mt-2 text-gray-600">Medicação Próxima</h2>
+        <Card className="divide-y">
+          {medications.map((med, index) => (
+            <label key={index} className="flex items-center justify-between p-3">
               <div>
-                <p className="font-semibold text-gray-900">Paracetamol</p>
-                <p className="text-sm text-gray-500">14:30</p>
+                <input type="checkbox" checked={checked.includes(index)} onChange={() => toggleCheck(index)} className="mr-2" />
+                <span className="font-medium text-gray-600">{med.name}</span>
+                <p className="text-xs text-gray-500">Dosagem: {med.dose}, Horário: {med.time}</p>
               </div>
-            </div>
-            <button className="text-teal-600 font-medium hover:underline">Tomar</button>
-          </div>
-        </div>
+              {checked.includes(index) && <CheckCircle2 className="text-teal-600" />}
+            </label>
+          ))}
+        </Card>
+        <Button className="mt-3 w-full bg-teal-100 text-teal-800">Ver todos</Button>
+      </section>
 
-        {/* Minha rotina section */}
-        <section className="mb-8">
-          <h2 className="text-teal-700 font-semibold text-lg mb-3">Minha rotina</h2>
-          <p className="text-sm text-teal-600 mb-2">75% concluído</p>
-          <div className="w-full h-4 bg-teal-200 rounded-full overflow-hidden">
-            <div className="h-4 bg-teal-600 rounded-full" style={{ width: '75%' }}></div>
-          </div>
-        </section>
-
-        {/* Acesso rápido section */}
-        <section className="mb-8">
-          <h2 className="text-teal-700 font-semibold text-lg mb-4">Acesso rápido</h2>
-          <div className="flex justify-between gap-4">
-            <button className="flex flex-col items-center bg-white rounded-2xl shadow-md p-4 flex-1 hover:shadow-lg transition">
-              <span className="text-3xl mb-2">💊</span>
-              <span className="text-teal-700 font-medium">Remédios</span>
-            </button>
-            <button
-              onClick={() => router.push('/sc/doses/new')}
-              className="flex flex-col items-center bg-white rounded-2xl shadow-md p-4 flex-1 hover:shadow-lg transition"
-            >
-              <span className="text-3xl mb-2">➕</span>
-              <span className="text-teal-700 font-medium">Adicionar dose</span>
-            </button>
-            <button className="flex flex-col items-center bg-white rounded-2xl shadow-md p-4 flex-1 hover:shadow-lg transition">
-              <span className="text-3xl mb-2">📊</span>
-              <span className="text-teal-700 font-medium">Histórico</span>
-            </button>
-          </div>
-        </section>
-
-        {/* Minha semana section */}
-        <section className="mb-8">
-          <h2 className="text-teal-700 font-semibold text-lg mb-4">Minha semana</h2>
-          <div className="flex justify-between max-w-md mx-auto">
-            {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-              <div
-                key={day}
-                className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer ${
-                  day === 5
-                    ? 'bg-teal-600 text-white font-semibold shadow-lg'
-                    : 'bg-white text-teal-600 font-medium shadow'
-                }`}
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Medicação Próxima list */}
-        <section className="mb-8 flex-1 overflow-auto">
-          <h2 className="text-teal-700 font-semibold text-lg mb-4">Medicação Próxima</h2>
-          <ul className="space-y-3">
-            {[
-              { id: 1, name: 'Ibuprofeno', time: '08:00' },
-              { id: 2, name: 'Amoxicilina', time: '12:00' },
-              { id: 3, name: 'Cetirizina', time: '18:00' },
-              { id: 4, name: 'Metformina', time: '22:00' },
-            ].map(({ id, name, time }) => (
-              <li key={id} className="bg-white rounded-2xl p-4 shadow flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center text-white text-xl shadow">
-                    💊
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{name}</p>
-                    <p className="text-sm text-gray-500">{time}</p>
-                  </div>
-                </div>
-                <input type="checkbox" className="w-5 h-5 text-teal-600 rounded" />
-              </li>
-            ))}
-          </ul>
-          <button className="mt-6 w-full text-center text-teal-600 font-semibold hover:underline">
-            Ver todos
-          </button>
-        </section>
-
-        {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-around shadow-inner">
-          <button className="flex flex-col items-center text-teal-600 font-semibold">
-            <span className="text-2xl">🏠</span>
-            <span className="text-xs mt-1">Início</span>
-          </button>
-          <button className="flex flex-col items-center text-gray-400 hover:text-teal-600 transition">
-            <span className="text-2xl">💊</span>
-            <span className="text-xs mt-1">Remédios</span>
-          </button>
-          <button className="flex flex-col items-center text-gray-400 hover:text-teal-600 transition">
-            <span className="text-2xl">👤</span>
-            <span className="text-xs mt-1">Perfil</span>
-          </button>
-        </nav>
+      <nav className="flex justify-around fixed bottom-0 left-0 w-full bg-white py-2 border-t">
+        <Button variant="ghost" size="icon"><Pill /></Button>
+        <Button variant="ghost" size="icon"><Plus /></Button>
+        <Button variant="ghost" size="icon"><Clock /></Button>
+      </nav>
       </div>
-    </>
+    </div>
   );
 }
