@@ -8,10 +8,13 @@ datasource db {
 }
 
 model Survey {
-  id                                    String    @id @default(cuid())
+  id                                    String      @id @default(cuid())
+  // Dados do Usuário
   userName                              String?
-  dosesAdded                            Boolean   @default(false)
-  startedAt                             DateTime  @default(now())
+  deviceInfo                            Json?       // Informações do dispositivo/navegador
+  
+  // Timestamps de Navegação
+  startedAt                             DateTime    @default(now())
   firstDashboardEntryAt                 DateTime?
   secondDashboardEntryAt                DateTime?
   onboardingCompletedAt                 DateTime?
@@ -19,8 +22,284 @@ model Survey {
   doseCreationCompletedAt               DateTime?
   firstTimeViewingDosesList             DateTime?
   alarmModalAcknowledgedAt              DateTime?
-  doses                                 Json?     // Store doses array as JSON
-  userEvents                            Json?     // Store user events array as JSON
-  createdAt                             DateTime  @default(now())
-  updatedAt                             DateTime  @updatedAt
+  feedbackCompletedAt                   DateTime?   // Quando completou o feedback/pesquisa
+  lastActiveAt                          DateTime?   @updatedAt
+  
+  // Dados de Uso
+  dosesAdded                            Boolean     @default(false)
+  totalDosesCreated                     Int         @default(0)
+  totalAlarmsSet                        Int         @default(0)
+  totalAlarmsDismissed                  Int         @default(0)
+  totalAlarmsSnoozed                    Int         @default(0)
+  totalDosesTaken                       Int         @default(0)
+  totalPageViews                        Int         @default(0)
+  
+  // Relacionamentos
+  doses                                 Dose[]      @relation("SurveyDoses")
+  navigationEvents                      NavEvent[]  @relation("SurveyNavEvents")
+  userInteractions                      Interaction[] @relation("SurveyInteractions")
+  feedbacks                             Feedback[]   @relation("SurveyFeedbacks")
+  alarmInteractions                     AlarmInteraction[] @relation("SurveyAlarms")
+  doseHistory                           DoseHistory[] @relation("SurveyDoseHistory")
+  pageTimings                           PageTiming[] @relation("SurveyPageTimings")
+  
+  // Metadados de Sessão
+  appVersion                            String?     // Versão do app
+  platform                              String?     // web, android, ios
+  timezone                              String?     // Fuso horário do usuário
+  language                              String?     // Idioma
+  
+  // Dados legados (manter compatibilidade)
+  userEvents                            Json?       // Store user events array as JSON (legacy)
+  
+  // Auditoria
+  createdAt                             DateTime    @default(now())
+  updatedAt                             DateTime    @updatedAt
+}
+
+model Dose {
+  id                String    @id // Client-side generated ID (e.g., dose_1760749754145)
+  surveyId          String
+  survey            Survey    @relation("SurveyDoses", fields: [surveyId], references: [id], onDelete: Cascade)
+  
+  // Dados do Medicamento (compatível com o formato atual)
+  name              String    // Nome do medicamento (era "medicationName")
+  time              String    // Horário da dose (HH:mm format)
+  notes             String    @default("")
+  
+  // Frequência e Dias
+  frequency         String     // "daily" ou "weekly"
+  selectedDays      Json       @default("[]") // Array de dias: ["monday", "wednesday"]
+  
+  // Datas de Validade
+  startDate         String?    // ISO date string ou null
+  endDate           String?    // ISO date string ou null
+  
+  // Rastreamento de Uso
+  totalTaken        Int        @default(0)
+  totalMissed       Int        @default(0)
+  lastTakenAt       DateTime?
+  
+  // Relacionamentos
+  history           DoseHistory[] @relation("DoseHistory")
+  alarms            AlarmInteraction[] @relation("DoseAlarms")
+  
+  // Metadados
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+model DoseHistory {
+  id              String     @id @default(cuid())
+  surveyId        String
+  survey          Survey     @relation("SurveyDoseHistory", fields: [surveyId], references: [id], onDelete: Cascade)
+  doseId          String
+  dose            Dose       @relation("DoseHistory", fields: [doseId], references: [id], onDelete: Cascade)
+  
+  // Dados do Evento
+  action          String     // taken, missed, skipped, snoozed
+  timestamp       DateTime   @default(now())
+  scheduledTime   String?    // Hora agendada
+  actualTime      String?    // Hora real que tomou
+  
+  // Contexto
+  takenOnTime     Boolean?   // Se tomou no horário
+  delayMinutes    Int?       // Atraso em minutos
+  source          String?    // dashboard, alarm, manual
+  
+  // Metadados
+  notes           String?    // Observações do usuário
+  metadata        Json?      // Dados extras
+  
+  @@index([surveyId, doseId])
+  @@index([timestamp])
+}
+
+model NavEvent {
+  id              String     @id @default(cuid())
+  surveyId        String
+  survey          Survey     @relation("SurveyNavEvents", fields: [surveyId], references: [id], onDelete: Cascade)
+  
+  // Dados da Navegação
+  route           String     // Rota acessada
+  routeFrom       String?    // Rota anterior
+  timestamp       DateTime   @default(now())
+  duration        Int?       // Duração em milissegundos na rota
+  exitTimestamp   DateTime?  // Quando saiu da página
+  
+  // Contexto
+  deviceType      String?    // mobile, desktop, tablet
+  screenSize      String?    // Resolução da tela (ex: 1920x1080)
+  viewportSize    String?    // Tamanho da viewport (ex: 1200x800)
+  
+  // Metadados técnicos
+  userAgent       String?    // User agent string
+  ipAddress       String?    // Endereço IP (se aplicável)
+  language        String?    // Idioma do navegador
+  timezone        String?    // Fuso horário
+  sessionId       String?    // ID da sessão
+  
+  // Dados de comportamento
+  scrollDepth     Int?       // % de scroll na página
+  clickCount      Int?       // Número de cliques
+  
+  // Metadados
+  metadata        Json?      // Metadados extras em JSON
+  
+  @@index([surveyId, route])
+  @@index([timestamp])
+}
+
+model PageTiming {
+  id              String     @id @default(cuid())
+  surveyId        String
+  survey          Survey     @relation("SurveyPageTimings", fields: [surveyId], references: [id], onDelete: Cascade)
+  
+  // Identificação
+  page            String     // Nome/rota da página
+  sessionId       String     // ID da sessão
+  
+  // Tempos (em milissegundos)
+  enteredAt       DateTime   @default(now())
+  exitedAt        DateTime?
+  timeSpent       Int?       // Tempo total na página em ms
+  
+  // Performance
+  loadTime        Int?       // Tempo de carregamento
+  timeToInteractive Int?     // Tempo até ficar interativa
+  
+  // Comportamento
+  interactions    Int        @default(0) // Número de interações
+  scrollDepthMax  Int?       // Máximo de scroll (%)
+  
+  // Metadados
+  metadata        Json?
+  
+  @@index([surveyId, page])
+  @@index([enteredAt])
+}
+
+model Interaction {
+  id              String     @id @default(cuid())
+  surveyId        String
+  survey          Survey     @relation("SurveyInteractions", fields: [surveyId], references: [id], onDelete: Cascade)
+  
+  // Dados da Interação
+  type            String     // click, input, scroll, hover, focus, blur
+  element         String     // ID ou classe do elemento
+  elementText     String?    // Texto do elemento
+  page            String     // Página onde ocorreu
+  value           String?    // Valor associado (opcional)
+  
+  // Contexto espacial
+  timestamp       DateTime   @default(now())
+  xPosition       Int?       // Posição X do clique
+  yPosition       Int?       // Posição Y do clique
+  
+  // Metadados
+  sessionId       String?    // ID da sessão
+  duration        Int?       // Duração da interação (para hovers, etc)
+  metadata        Json?
+  
+  @@index([surveyId, type])
+  @@index([timestamp])
+}
+
+model AlarmInteraction {
+  id              String     @id @default(cuid())
+  surveyId        String
+  survey          Survey     @relation("SurveyAlarms", fields: [surveyId], references: [id], onDelete: Cascade)
+  doseId          String?
+  dose            Dose?      @relation("DoseAlarms", fields: [doseId], references: [id], onDelete: SetNull)
+  
+  // Dados do Alarme
+  action          String     // triggered, dismissed, snoozed, confirmed, deferred
+  timestamp       DateTime   @default(now())
+  
+  // Timing
+  scheduledTime   String?    // Hora agendada do alarme (HH:mm)
+  actualTime      String?    // Hora que interagiu
+  responseTime    Int?       // Tempo de resposta em segundos
+  
+  // Snooze
+  snoozeDuration  Int?       // Duração do snooze em minutos
+  snoozeCount     Int        @default(0) // Quantas vezes adiou
+  
+  // Contexto
+  source          String?    // notification, modal, badge
+  deviceState     String?    // active, background, locked
+  
+  // Metadados
+  metadata        Json?
+  
+  @@index([surveyId, action])
+  @@index([timestamp])
+}
+
+model Feedback {
+  id              String     @id @default(cuid())
+  surveyId        String
+  survey          Survey     @relation("SurveyFeedbacks", fields: [surveyId], references: [id], onDelete: Cascade)
+  
+  // Perguntas de avaliação (1-5)
+  easeOfUse       Int?       // Facilidade de uso
+  clarityOfInstructions Int? // Clareza das instruções
+  perceivedSpeed  Int?       // Rapidez percebida
+  confidenceInUse Int?       // Confiança no uso
+  intentionToUse  Int?       // Intenção de uso futuro
+  
+  // Feedback textual
+  missingFeatures String?    // O que faltou
+  additionalComments String? // Comentários adicionais
+  
+  // Métricas gerais
+  overallRating   Int?       // Avaliação geral (1-5)
+  nps             Int?       // Net Promoter Score (0-10)
+  
+  // Categorização
+  category        String?    // bug, suggestion, praise, complaint
+  tags            Json?      // Tags para categorização
+  
+  // Contexto temporal
+  timestamp       DateTime   @default(now())
+  timeToComplete  Int?       // Tempo para completar feedback (ms)
+  
+  // Metadados
+  appVersion      String?    // Versão do app quando o feedback foi enviado
+  source          String?    // Onde o feedback foi dado (ex: modal, email, etc.)
+  contactAllowed  Boolean    @default(false) // Se o usuário permitiu contato
+  
+  // Dados adicionais
+  metadata        Json?
+  
+  @@index([surveyId])
+  @@index([timestamp])
+}
+
+model ErrorLog {
+  id              String     @id @default(cuid())
+  surveyId        String?    // Pode ser null se erro ocorreu antes de ter survey
+  
+  // Dados do Erro
+  errorType       String     // javascript, api, network, validation
+  errorMessage    String
+  errorStack      String?    @db.Text // Stack trace completo
+  
+  // Contexto
+  page            String?    // Página onde ocorreu
+  userAgent       String?
+  timestamp       DateTime   @default(now())
+  
+  // Reprodução
+  componentStack  String?    @db.Text // React component stack
+  userActions     Json?      // Últimas ações do usuário
+  
+  // Metadados
+  severity        String?    // low, medium, high, critical
+  resolved        Boolean    @default(false)
+  metadata        Json?
+  
+  @@index([surveyId])
+  @@index([timestamp])
+  @@index([errorType])
 }
